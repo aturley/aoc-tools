@@ -1,4 +1,5 @@
 use ".."
+use "itertools"
 use "ponytest"
 
 actor Main is TestList
@@ -47,3 +48,4 @@ class iso _TestSparseGrid is UnitTest
     let g = SparseGrid[String]
     g(1, 2) = "b"
     h.assert_eq[String](g(1, 2)?, "b")
+    h.assert_eq[USize](Iter[String](g.values()).count(), 1)

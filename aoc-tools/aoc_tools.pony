@@ -133,6 +133,11 @@ class SparseGrid[T]
   fun ref update(x: ISize, y: ISize, value: T) =>
     _values(_GridCoord(x, y)) = value
 
+  fun values(): MapValues[_GridCoord, T!, HashEq[_GridCoord val],
+    this->HashMap[_GridCoord, T!, HashEq[_GridCoord val]]]^ =>
+
+    _values.values()
+
 class val GridWalkerCardinal
   let _x: ISize
   let _y: ISize
