@@ -1,5 +1,6 @@
 use "collections"
 use "files"
+use "ponytest"
 
 class val AOCAppError
   let _msg: String
@@ -10,56 +11,127 @@ class val AOCAppError
   fun msg(): String =>
     _msg
 
-trait AOCApp
-  fun part1(file_lines: Array[String] val): (String | AOCAppError) ? =>
-    AOCAppError("part1 is not implemented")
-
-  fun part2(file_lines: Array[String] val): (String | AOCAppError) ? =>
-    AOCAppError("part2 is not implemented")
-
-primitive AOCAppRunner
-  fun apply(aoc_app: AOCApp, env: Env) =>
-    let file_name = try
-      env.args(1)?
-    else
-      env.err.print("file name argument is missing")
-      return
-    end
-
-    let part = try
-      env.args(2)?
-    else
-      env.err.print("part argument is missing")
-      return
-    end
-
-    let file_lines = try
-      SimpleFileReader.as_lines(file_name, env.root as AmbientAuth)?
-    else
-      env.err.print("problem reading input file")
-      return
-    end
-
-    let part_fun = match part
-    | "1" =>
-      aoc_app~part1()
-    | "2" =>
-      aoc_app~part2()
-    else
-      env.err.print("part must be 1 or 2")
-      return
-    end
-
-    try
-      match part_fun(file_lines)?
-      | let s: String =>
-        env.out.print(s)
-      | let e: AOCAppError =>
-        env.err.print(e.msg())
+trait AOCAppRunnerBase
+  fun file_lines_and_part_or_test(env: Env,
+    test_list: (TestList tag | None) = None):
+    ((Array[String] val, String) | None)
+  =>
+    if env.args.size() == 1 then
+      try
+        PonyTest(env, test_list as TestList tag)
+        None
+      else
+        env.err.print("No arguments were passed and no TestList was provided")
       end
     else
-      env.err.print("there was an error running the app")
+      let file_name = try
+        env.args(1)?
+      else
+        env.err.print("file name argument is missing")
+        return
+      end
+
+      let part = try
+        env.args(2)?
+      else
+        env.err.print("part argument is missing")
+        return
+      end
+
+      let file_lines = try
+        SimpleFileReader.as_lines(file_name, env.root as AmbientAuth)?
+      else
+        env.err.print("problem reading input file")
+        return
+      end
+
+      (file_lines, part)
     end
+
+trait AOCApp
+  fun part1(file_lines: Array[String] val, args: Array[String] val)
+    : (String | AOCAppError) ?
+  =>
+    AOCAppError("part1 is not implemented")
+
+  fun part2(file_lines: Array[String] val, args: Array[String] val):
+    (String | AOCAppError) ?
+  =>
+    AOCAppError("part2 is not implemented")
+
+primitive AOCAppRunner is AOCAppRunnerBase
+  fun apply(aoc_app: AOCApp, env: Env,
+    test_list: (TestList tag | None) = None)
+  =>
+    match file_lines_and_part_or_test(env, test_list)
+    | (let file_lines: Array[String] val, let part: String) =>
+      let part_fun = match part
+      | "1" =>
+        aoc_app~part1()
+      | "2" =>
+        aoc_app~part2()
+      else
+        env.err.print("part must be 1 or 2")
+        return
+      end
+
+      try
+        match part_fun(file_lines, env.args)?
+        | let s: String =>
+          env.out.print(s)
+        | let e: AOCAppError =>
+          env.err.print(e.msg())
+        end
+      else
+        env.err.print("there was an error running the app")
+      end
+    end
+
+interface tag AOCActorAppReporter
+  be err(msg: String)
+  be apply(msg: String)
+
+trait tag AOCActorApp
+  be part1(file_lines: Array[String] val, args: Array[String] val,
+    reporter: AOCActorAppReporter)
+  =>
+    reporter.err("part1 is not implemented")
+
+  be part2(file_lines: Array[String] val, args: Array[String] val,
+    reporter: AOCActorAppReporter)
+  =>
+    reporter.err("part2 is not implemented")
+
+actor AOCActorAppRunner is AOCAppRunnerBase
+  let _out: OutStream
+  let _err: OutStream
+
+  new create(aoc_app: AOCActorApp, env: Env,
+    test_list: (TestList tag | None) = None)
+  =>
+    _out = env.out
+    _err = env.err
+
+    match file_lines_and_part_or_test(env, test_list)
+    | (let file_lines: Array[String] val, let part: String) =>
+      let part_fun = match part
+      | "1" =>
+        aoc_app~part1()
+      | "2" =>
+        aoc_app~part2()
+      else
+        env.err.print("part must be 1 or 2")
+        return
+      end
+
+      part_fun(file_lines, env.args, this)
+    end
+
+  be err(msg: String) =>
+    _err.print("Error: " + msg)
+
+  be apply(msg: String) =>
+    _out.print(msg)
 
 primitive RotateArray
   fun apply[T: Any](a: Array[T] ref, n: ISize): Array[T!] ref ? =>
