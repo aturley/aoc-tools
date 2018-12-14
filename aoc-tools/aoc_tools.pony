@@ -168,7 +168,7 @@ class Grid[T]
       error
     end
 
-    x + (y * _dim_y)
+    x + (y * _dim_x)
 
   fun apply(x: USize, y: USize): this->T ? =>
     _values(_c(x, y)?)?
